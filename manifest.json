@@ -1,10 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "<name in manifest.json>",
-  "description": "<description in manifest.json>",
-  "options_ui": {
-    "page": "src/pages/options/index.html"
-  },
+  "name": "Live Leetcode Mumbler (LLM) Interviewer",
+  "description": "Practice articulating your thoughts while in a technical interview with the help of a Large Language Model",
   "background": {
     "service_worker": "src/pages/background/index.ts",
     "type": "module"
@@ -15,11 +12,14 @@
       "32": "icon-32.png"
     }
   },
+  "side_panel": {
+    "default_path": "src/pages/panel/index.html"
+  },
   "icons": {
     "128": "icon-128.png"
   },
   "permissions": [
-    "activeTab"
+    "sidePanel"
   ],
   "content_scripts": [
     {
