@@ -1,9 +1,23 @@
 import { useState } from 'react';
 import '@pages/panel/Panel.css';
 import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio } from '@chakra-ui/react';
+import { generateNewProblem } from '@src/services/leetcode';
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
+
+  async function beginInterview() {
+    const problemURL = await generateNewProblem();
+
+    chrome.tabs.query({ // change the tab url
+      currentWindow: true,
+      active: true
+    }, function (tab) {
+      chrome.tabs.update({
+        url: problemURL
+      });
+    });
+  }
 
   return (
     <div className='container'>
@@ -32,7 +46,9 @@ export default function Panel(): JSX.Element {
         </CheckboxGroup>
       </div>
       <Center>
-        <Button>Begin Interview</Button>
+        <Button onClick={beginInterview}>
+          Begin Interview
+        </Button>
       </Center>
     </div>
   );
