@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import '@pages/panel/Panel.css';
 import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio } from '@chakra-ui/react';
 import { generateNewProblem } from '@src/services/leetcode';
@@ -8,6 +8,7 @@ import { useTranscriber } from "../../hooks/useTranscriber";
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
+  const [recognition, setRecognition] = useState()
 
   async function beginInterview() {
     const problemURL = await generateNewProblem();
@@ -22,15 +23,42 @@ export default function Panel(): JSX.Element {
     });
   }
 
-  const transcriber = useTranscriber();
+  // const transcriber = useTranscriber();
 
-  chrome.permissions.request({ permissions: ['audioCapture'] }, function (granted) {
-    if (granted) {
-      // User granted microphone permission
+  useEffect(() => {
+    const recog = new webkitSpeechRecognition() || new SpeechRecognition();
+
+    recog.interimResults = true;
+    recog.continuous = true;
+
+    setRecognition(recog);
+  }, [])
+
+  function beginListen() {
+    if (recognition) {
+      recognition.start();
+
+      recognition.onresult = event => {
+        const result = event.results[event.results.length - 1][0].transcript;
+        // will have to restart a timer between like, state changes
+        console.log(result);
+      };
+
+      recognition.onend = () => {
+        console.log("ended, please restart recording");
+      };
+
+      recognition.onerror = event => {
+        console.error('Speech recognition error:', event.error);
+      };
+
+      recognition.onnomatch = () => {
+        console.log('No speech was recognized.');
+      };
     } else {
-      // User denied microphone permission
+      console.log("no recognition");
     }
-  });
+  }
 
   return (
     <div className='container'>
@@ -64,10 +92,13 @@ export default function Panel(): JSX.Element {
         </Button>
       </Center>
       <div>
-        <AudioManager transcriber={transcriber} />
+        {/* <AudioManager transcriber={transcriber} /> */}
+        <Button onClick={beginListen}>
+          Listen
+        </Button>
       </div>
       <div>
-        <Transcript transcribedData={transcriber.output} />
+        {/* <Transcript transcribedData={transcriber.output} /> */}
       </div>
     </div>
   );
