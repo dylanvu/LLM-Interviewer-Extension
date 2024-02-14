@@ -8,9 +8,24 @@ import { useTranscriber } from "../../hooks/useTranscriber";
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
-  const [recognition, setRecognition] = useState()
+  const [recognition, setRecognition] = useState();
+  const [interviewState, setInterviewState] = useState<"idle" | "listening" | "speaking">("idle");
+  const [feedbackState, setFeedbackState] = useState<"loading" | "idle">("idle");
+
+  function say(text: string) {
+    // speech synthesis
+    let utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => {
+      setInterviewState("speaking");
+    }
+    utterance.onend = () => {
+      setInterviewState("idle");
+    }
+    speechSynthesis.speak(utterance);
+  }
 
   async function beginInterview() {
+    // first, redirect the user to a new leetcode problem
     const problemURL = await generateNewProblem();
 
     chrome.tabs.query({ // change the tab url
@@ -21,6 +36,18 @@ export default function Panel(): JSX.Element {
         url: problemURL
       });
     });
+    // scrape the leetcode window problem to get context as to what the problem is about
+    // TODO: only do this after the new url gets loaded in?
+
+    // call backend to call Gemini to create an introduction script
+
+    // parse response
+
+    // utter the text
+    say("Hello there! I will be interviewing you today. Today, you will be completing this Leetcode problem right here. You will have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
+
+    // switch the app state to be "listening" mode
+    setInterviewState("listening");
   }
 
   // const transcriber = useTranscriber();
@@ -34,7 +61,12 @@ export default function Panel(): JSX.Element {
 
     setRecognition(recog);
 
-  }, [])
+  }, []);
+
+  useEffect(() => {
+    console.log(interviewState);
+  }, [interviewState])
+
 
   function beginListen() {
     if (recognition) {
@@ -44,9 +76,7 @@ export default function Panel(): JSX.Element {
         const result = event.results[event.results.length - 1][0].transcript;
         console.log(result);
 
-        // speech synthesis
-        let utterance = new SpeechSynthesisUtterance(result);
-        speechSynthesis.speak(utterance);
+        say(result);
         // TODO: Find a way to not capture this audio again
       };
 
@@ -97,15 +127,11 @@ export default function Panel(): JSX.Element {
           Begin Interview
         </Button>
       </Center>
-      <div>
-        {/* <AudioManager transcriber={transcriber} /> */}
+      {/* <div>
         <Button onClick={beginListen}>
           Listen
         </Button>
-      </div>
-      <div>
-        {/* <Transcript transcribedData={transcriber.output} /> */}
-      </div>
+      </div> */}
     </div>
   );
 }
