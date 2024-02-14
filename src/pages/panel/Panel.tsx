@@ -2,6 +2,9 @@ import { useState } from 'react';
 import '@pages/panel/Panel.css';
 import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio } from '@chakra-ui/react';
 import { generateNewProblem } from '@src/services/leetcode';
+import { AudioManager } from '@src/components/AudioManager';
+import Transcript from '@src/components/Transcript';
+import { useTranscriber } from "../../hooks/useTranscriber";
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
@@ -18,6 +21,16 @@ export default function Panel(): JSX.Element {
       });
     });
   }
+
+  const transcriber = useTranscriber();
+
+  chrome.permissions.request({ permissions: ['audioCapture'] }, function (granted) {
+    if (granted) {
+      // User granted microphone permission
+    } else {
+      // User denied microphone permission
+    }
+  });
 
   return (
     <div className='container'>
@@ -50,6 +63,12 @@ export default function Panel(): JSX.Element {
           Begin Interview
         </Button>
       </Center>
+      <div>
+        <AudioManager transcriber={transcriber} />
+      </div>
+      <div>
+        <Transcript transcribedData={transcriber.output} />
+      </div>
     </div>
   );
 }

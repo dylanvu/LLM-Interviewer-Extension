@@ -19,7 +19,11 @@
     "128": "icon-128.png"
   },
   "permissions": [
-    "sidePanel"
+    "sidePanel",
+    "audio"
+  ],
+  "host_permissions": [
+    "https://www.leetcode.com/"
   ],
   "content_scripts": [
     {
