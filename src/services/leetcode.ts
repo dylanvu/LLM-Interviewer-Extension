@@ -75,8 +75,8 @@ export async function generateNewProblem(filterOptions?: FilterOptions) {
     const today = filtered.at(randInt);
     if (!today) {
         console.error("error finding random problem");
+        return "error";
     } else {
-        console.log(today.url)
+        return today.url;
     }
-    return;
 }
