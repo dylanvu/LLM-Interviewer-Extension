@@ -26,12 +26,14 @@ export default function Panel(): JSX.Element {
   // const transcriber = useTranscriber();
 
   useEffect(() => {
+    // set up speech  recognition
     const recog = new webkitSpeechRecognition() || new SpeechRecognition();
 
-    recog.interimResults = true;
+    recog.interimResults = false; // use this to only create results whenever there is a pause
     recog.continuous = true;
 
     setRecognition(recog);
+
   }, [])
 
   function beginListen() {
@@ -40,12 +42,16 @@ export default function Panel(): JSX.Element {
 
       recognition.onresult = event => {
         const result = event.results[event.results.length - 1][0].transcript;
-        // will have to restart a timer between like, state changes
         console.log(result);
+
+        // speech synthesis
+        let utterance = new SpeechSynthesisUtterance(result);
+        speechSynthesis.speak(utterance);
+        // TODO: Find a way to not capture this audio again
       };
 
       recognition.onend = () => {
-        console.log("ended, please restart recording");
+        console.log("ended, restarting recording");
       };
 
       recognition.onerror = event => {
