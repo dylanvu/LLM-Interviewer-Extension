@@ -6,16 +6,12 @@ import { ChromeMessage } from '@src/interfaces/messages';
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
-  const [recognition, setRecognition] = useState();
-  const [interviewState, setInterviewState] = useState<"off" | "listening" | "speaking">("off");
-  const [feedbackState, setFeedbackState] = useState<"loading" | "idle">("idle");
+  const [interviewState, setInterviewState] = useState<"off" | "listening" | "speaking" | "doneListening">("off");
+  const [transcript, setTranscript] = useState<string>("");
 
   function say(text: string) {
     // speech synthesis
     let utterance = new SpeechSynthesisUtterance(text);
-    utterance.onstart = () => {
-      setInterviewState("speaking");
-    }
     utterance.onend = () => {
       setInterviewState("listening");
     }
@@ -42,13 +38,6 @@ export default function Panel(): JSX.Element {
   // const transcriber = useTranscriber();
 
   useEffect(() => {
-    // set up speech recognition
-    const recog = new webkitSpeechRecognition() || new SpeechRecognition();
-
-    recog.interimResults = false; // use this to only create results whenever there is a pause
-    recog.continuous = true;
-
-    setRecognition(recog);
 
     // listen for events
     chrome.runtime.onMessage.addListener(async (request: ChromeMessage, sender, sendResponse) => {
@@ -56,8 +45,10 @@ export default function Panel(): JSX.Element {
         console.log(request.problem);
         // now begin the interview
         say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
+
       } else if (request.action === "scrapingError") {
         console.error("Error while scraping:", request.error);
+
       } else if (request.action === "domStateChange") {
         if (request.state === "DOMLoaded") {
           // send message to scrape the leetcode question
@@ -74,6 +65,7 @@ export default function Panel(): JSX.Element {
             }
           })
         }
+
       } else if (request.action === "log") {
         console.log("Log from content script:", request.log);
       }
@@ -81,37 +73,53 @@ export default function Panel(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    // when the FSM changes, listen
+    if (interviewState === "listening") {
+      // clear transcript
+      setTranscript("");
+      listen();
+    } else if (interviewState === "speaking") {
+      // reset transcript
+    } else if (interviewState === "doneListening") {
+      // send transcript to LLM
+
+      // say it out loud
+      say(transcript);
+    }
     console.log(interviewState);
   }, [interviewState]);
 
-  function beginListen() {
-    if (recognition) {
-      recognition.start();
+  function listen() {
 
-      recognition.onresult = event => {
+    const recognition = new webkitSpeechRecognition() || new SpeechRecognition();
+
+    recognition.interimResults = false; // use this to only create results whenever there is a pause
+    recognition.continuous = true;
+
+    recognition.start();
+
+    recognition.onresult = (event: any) => {
+      if (interviewState === "listening") {
         const result = event.results[event.results.length - 1][0].transcript;
-        console.log(result);
+        setTranscript(result);
+        setInterviewState("doneListening");
+        recognition.stop()
+      }
+    };
 
-        // speech synthesis
-        let utterance = new SpeechSynthesisUtterance(result);
-        speechSynthesis.speak(utterance);
-        // TODO: Find a way to not capture this audio again
-      };
+    recognition.onend = () => {
+      console.log("ending recognition");
+    };
 
-      recognition.onend = () => {
-        console.log("ended, restarting recording");
-      };
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+    };
 
-      recognition.onerror = event => {
-        console.error('Speech recognition error:', event.error);
-      };
+    recognition.onnomatch = () => {
+      console.log('No speech was recognized.');
+    };
 
-      recognition.onnomatch = () => {
-        console.log('No speech was recognized.');
-      };
-    } else {
-      console.log("no recognition");
-    }
+
   }
 
   return (
@@ -145,11 +153,8 @@ export default function Panel(): JSX.Element {
           Begin Interview
         </Button>
       </Center>
-      {/* <div>
-        <Button onClick={beginListen}>
-          Listen
-        </Button>
-      </div> */}
+      <h1>Real-time Transcript</h1>
+      <div>{transcript}</div>
     </div>
   );
 }
