@@ -47,7 +47,6 @@ export async function getAllProblems(): Promise<Problem[]> {
  * @returns an embed object with the new problem
  */
 export async function generateNewProblem(filterOptions?: FilterOptions) {
-    console.log("Sending a new problem");
     // make the api call
     const problems = await getAllProblems();
     let filtered: Problem[] = [];
