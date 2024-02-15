@@ -37,13 +37,6 @@ export default function Panel(): JSX.Element {
       await chrome.tabs.update({
         url: problemURL
       });
-
-      // utter the text
-      say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
-
-      // switch the app state to be "listening" mode
-      setInterviewState("listening");
-
     });
   }
 
@@ -61,8 +54,11 @@ export default function Panel(): JSX.Element {
     // listen for events
     chrome.runtime.onMessage.addListener(async (request: ChromeMessage, sender, sendResponse) => {
       if (request.action === "problem") {
-        console.log("I got a problem:");
         console.log(request.problem);
+        // now begin the interview
+        say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
+        // switch the app state to be "listening" mode
+        setInterviewState("listening");
       } else if (request.action === "scrapingError") {
         console.error("Error while scraping:", request.error);
       } else if (request.action === "domStateChange") {
@@ -87,7 +83,7 @@ export default function Panel(): JSX.Element {
         const tabId = tabs[0].id;
         if (tabId) {
           console.log("Sending scraping message");
-          chrome.tabs.sendMessage(tabId, { action: "scrapeProblem" });
+          await chrome.tabs.sendMessage(tabId, { action: "scrapeProblem" });
         } else {
           console.error("unknown tabid while loading dom and sending scrape message");
         }
