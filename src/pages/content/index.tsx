@@ -18,7 +18,6 @@ async function scrapeProblem() {
   if (problem) {
     return problem.innerHTML;
   } else {
-    // TODO: Can I use chakra UI to create a Toast here?
     return ""
   }
 }
@@ -28,11 +27,23 @@ async function onDOMContentLoaded() {
   // create the listener
   chrome.runtime.onMessage.addListener(async (request: ChromeMessage, sender, sendResponse) => {
     if (request.action == "scrapeProblem") {
-      // scrape problem
-      const problem = await scrapeProblem();
-      if (problem.length) {
-        await sendMessage("problem", { problem: problem });
-      } else {
+      let attempts = 0;
+      const maxAttempts = 10;
+      let scraped = false;
+      while (attempts < maxAttempts) {
+        // scrape problem
+        const problem = await scrapeProblem();
+        // TODO: Create a toast depending on the scraping result
+        if (problem.length) {
+          await sendMessage("problem", { problem: problem });
+          scraped = true;
+          break;
+        } else {
+          await sendMessage("log", { log: "Did not find leetcode problem, rescraping" });
+        }
+        attempts++;
+      }
+      if (!scraped) {
         await sendMessage("scrapingError", { error: "Could not get leetcode problem" });
       }
     }

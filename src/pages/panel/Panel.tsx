@@ -63,14 +63,12 @@ export default function Panel(): JSX.Element {
       if (request.action === "problem") {
         console.log("I got a problem:");
         console.log(request.problem);
-      }
-
-      if (request.action === "scrapingError") {
-        console.error("Error while scraping");
-      }
-
-      if (request.action === "domStateChange") {
+      } else if (request.action === "scrapingError") {
+        console.error("Error while scraping:", request.error);
+      } else if (request.action === "domStateChange") {
         setDomState(request.state);
+      } else if (request.action === "log") {
+        console.log("Log from content script:", request.log);
       }
     });
   }, []);
