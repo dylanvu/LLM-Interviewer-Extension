@@ -7,9 +7,8 @@ import { ChromeMessage } from '@src/interfaces/messages';
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
   const [recognition, setRecognition] = useState();
-  const [interviewState, setInterviewState] = useState<"idle" | "listening" | "speaking">("idle");
+  const [interviewState, setInterviewState] = useState<"off" | "listening" | "speaking">("off");
   const [feedbackState, setFeedbackState] = useState<"loading" | "idle">("idle");
-  const [domState, setDomState] = useState<"DOMLoaded" | "DOMLoading">("DOMLoading");
 
   function say(text: string) {
     // speech synthesis
@@ -18,7 +17,7 @@ export default function Panel(): JSX.Element {
       setInterviewState("speaking");
     }
     utterance.onend = () => {
-      setInterviewState("idle");
+      setInterviewState("listening");
     }
     speechSynthesis.speak(utterance);
   }
@@ -57,12 +56,24 @@ export default function Panel(): JSX.Element {
         console.log(request.problem);
         // now begin the interview
         say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
-        // switch the app state to be "listening" mode
-        setInterviewState("listening");
       } else if (request.action === "scrapingError") {
         console.error("Error while scraping:", request.error);
       } else if (request.action === "domStateChange") {
-        setDomState(request.state);
+        if (request.state === "DOMLoaded") {
+          // send message to scrape the leetcode question
+          chrome.tabs.query({
+            currentWindow: true,
+            active: true
+          }, async (tabs) => {
+            const tabId = tabs[0].id;
+            if (tabId) {
+              console.log("Sending scraping message");
+              await chrome.tabs.sendMessage(tabId, { action: "scrapeProblem" });
+            } else {
+              console.error("unknown tabid while loading dom and sending scrape message");
+            }
+          })
+        }
       } else if (request.action === "log") {
         console.log("Log from content script:", request.log);
       }
@@ -73,23 +84,35 @@ export default function Panel(): JSX.Element {
     console.log(interviewState);
   }, [interviewState]);
 
-  useEffect(() => {
-    if (domState === "DOMLoaded") {
-      // send message to scrape the leetcode question
-      chrome.tabs.query({
-        currentWindow: true,
-        active: true
-      }, async (tabs) => {
-        const tabId = tabs[0].id;
-        if (tabId) {
-          console.log("Sending scraping message");
-          await chrome.tabs.sendMessage(tabId, { action: "scrapeProblem" });
-        } else {
-          console.error("unknown tabid while loading dom and sending scrape message");
-        }
-      })
+  function beginListen() {
+    if (recognition) {
+      recognition.start();
+
+      recognition.onresult = event => {
+        const result = event.results[event.results.length - 1][0].transcript;
+        console.log(result);
+
+        // speech synthesis
+        let utterance = new SpeechSynthesisUtterance(result);
+        speechSynthesis.speak(utterance);
+        // TODO: Find a way to not capture this audio again
+      };
+
+      recognition.onend = () => {
+        console.log("ended, restarting recording");
+      };
+
+      recognition.onerror = event => {
+        console.error('Speech recognition error:', event.error);
+      };
+
+      recognition.onnomatch = () => {
+        console.log('No speech was recognized.');
+      };
+    } else {
+      console.log("no recognition");
     }
-  }, [domState]);
+  }
 
   return (
     <div className='container'>
