@@ -8,14 +8,28 @@ export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
   const [interviewState, setInterviewState] = useState<"off" | "listening" | "speaking" | "doneListening">("off");
   const [transcript, setTranscript] = useState<string>("");
+  const [speech, setSpeech] = useState<SpeechSynthesis | null>(null)
+
+  function endInterview() {
+    // reset the FSM, clear transcripts, etc
+    setInterviewState("off");
+    setTranscript("");
+    if (speech) {
+      speech.cancel();
+      setSpeech(null);
+    }
+  }
 
   function say(text: string) {
+    setInterviewState("speaking");
     // speech synthesis
     let utterance = new SpeechSynthesisUtterance(text);
     utterance.onend = () => {
       setInterviewState("listening");
+      setSpeech(null);
     }
     speechSynthesis.speak(utterance);
+    setSpeech(speechSynthesis);
   }
 
   async function beginInterview() {
@@ -44,6 +58,7 @@ export default function Panel(): JSX.Element {
       if (request.action === "problem") {
         console.log(request.problem);
         // now begin the interview
+        // TODO: Create an internal timer or something somehow?
         say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
 
       } else if (request.action === "scrapingError") {
@@ -103,8 +118,8 @@ export default function Panel(): JSX.Element {
         const result = event.results[event.results.length - 1][0].transcript;
         setTranscript(result);
         setInterviewState("doneListening");
-        recognition.stop()
       }
+      recognition.stop()
     };
 
     recognition.onend = () => {
@@ -149,8 +164,8 @@ export default function Panel(): JSX.Element {
         </CheckboxGroup>
       </div>
       <Center>
-        <Button onClick={beginInterview}>
-          Begin Interview
+        <Button onClick={() => interviewState === "off" ? beginInterview() : endInterview()}>
+          {interviewState === "off" ? "Begin Interview" : "Stop Interview"}
         </Button>
       </Center>
       <h1>Real-time Transcript</h1>
