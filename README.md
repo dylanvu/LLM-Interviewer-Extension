@@ -122,3 +122,7 @@ Feel free to open PRs or raise issues!
 
 # Resources Used
 * Example usage of real-time transcribing using the Javascript Web API for Speech Recognition: https://medium.com/@sagarydv002/building-an-audio-to-text-with-real-time-speech-recognition-using-html-javascript-and-web-apis-fc316d68abfc
+
+# Troubleshooting
+* Microphone not working
+  * Open up the extension, go to site settings, and allow microphone

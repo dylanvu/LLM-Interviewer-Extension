@@ -3,7 +3,7 @@ import '@pages/panel/Panel.css';
 import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio, CircularProgress } from '@chakra-ui/react';
 import { generateNewProblem } from '@src/services/leetcode';
 import { ChromeMessage } from '@src/interfaces/messages';
-import { GeneratePrompt } from '@src/util/Constants';
+import { generatePrompt } from '@src/util/Constants';
 import { generateResponse } from '@src/services/gemini';
 
 export default function Panel(): JSX.Element {
@@ -26,7 +26,6 @@ export default function Panel(): JSX.Element {
   }
 
   function say(text: string) {
-    setInterviewState("speaking");
     // speech synthesis
     let utterance = new SpeechSynthesisUtterance(text);
     utterance.onend = () => {
@@ -61,33 +60,17 @@ export default function Panel(): JSX.Element {
     // listen for events
     chrome.runtime.onMessage.addListener(async (request: ChromeMessage, sender, sendResponse) => {
       if (request.action === "problem") {
+        // TODO: Create an internal timer or something somehow?
         const problem = request.problem;
         console.log(problem);
         // save this to display the current problem being worked on
         setProblem(problem);
         // generate the main prompt
-        const mainPrompt = GeneratePrompt(problem);
-        // TODO: put the FSM into interview loop mode
+        const mainPrompt = generatePrompt(problem);
         let history = [mainPrompt];
-        // make the request to Gemini
-        setIsLoadingResponse(true);
-        const response = await generateResponse(history);
-        setIsLoadingResponse(false);
-        // say the result
-        // parse out the speak
-        const responseObj = JSON.parse(response);
-        const speakString = responseObj.speak
-        if (speakString && speakString.length > 0) {
-          say(speakString);
-        } else {
-          console.log("no speaking, but here is the res:", responseObj)
-        }
-        // save the history
-        history = history.concat([response]);
         setHistory(history);
         // now begin the interview cycle
-        // TODO: Create an internal timer or something somehow?
-        // say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
+        setInterviewState("doneListening");
       } else if (request.action === "scrapingError") {
         console.error("Error while scraping:", request.error);
 
@@ -121,12 +104,37 @@ export default function Panel(): JSX.Element {
       setTranscript("");
       listen();
     } else if (interviewState === "speaking") {
-      // reset transcript
-    } else if (interviewState === "doneListening") {
-      // send transcript to LLM
 
-      // say it out loud
-      say(transcript);
+    } else if (interviewState === "doneListening") {
+      // generate a response using gpt with the current history
+      console.log("Just said:", `"${transcript}"`);
+      // make the request to Gemini
+      setIsLoadingResponse(true);
+      let historyToSend: string[];
+      if (!history || history.length === 0) {
+        historyToSend = [generatePrompt(problem)];
+      } else {
+        historyToSend = [...history];
+      }
+      generateResponse(historyToSend).then(response => {
+        setIsLoadingResponse(false);
+        // say the result
+        // parse out the speak
+        const responseObj = JSON.parse(response);
+        const speakString = responseObj.speak
+        // save the history
+        const newHistory = historyToSend.concat([response]);
+        setHistory(newHistory);
+        // speak it now
+        if (speakString && speakString.length > 0) {
+          setInterviewState("speaking");
+          say(speakString);
+        } else {
+          setInterviewState("listening");
+          console.log("no speaking, but here is the res:", responseObj)
+        }
+
+      });
     }
     console.log(interviewState);
   }, [interviewState]);
@@ -144,13 +152,13 @@ export default function Panel(): JSX.Element {
       if (interviewState === "listening") {
         const result = event.results[event.results.length - 1][0].transcript;
         setTranscript(result);
-        setInterviewState("doneListening");
       }
       recognition.stop()
     };
 
     recognition.onend = () => {
       console.log("ending recognition");
+      setInterviewState("doneListening");
     };
 
     recognition.onerror = (event: any) => {
