@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import '@pages/panel/Panel.css';
-import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio } from '@chakra-ui/react';
+import { Button, CheckboxGroup, Checkbox, Stack, Text, Center, RadioGroup, Radio, CircularProgress } from '@chakra-ui/react';
 import { generateNewProblem } from '@src/services/leetcode';
 import { ChromeMessage } from '@src/interfaces/messages';
+import { GeneratePrompt } from '@src/util/Constants';
+import { generateResponse } from '@src/services/gemini';
 
 export default function Panel(): JSX.Element {
   const [position, setPosition] = useState("intern");
   const [interviewState, setInterviewState] = useState<"off" | "listening" | "speaking" | "doneListening">("off");
   const [transcript, setTranscript] = useState<string>("");
-  const [speech, setSpeech] = useState<SpeechSynthesis | null>(null)
+  const [isLoadingResponse, setIsLoadingResponse] = useState<boolean>(false);
+  const [speech, setSpeech] = useState<SpeechSynthesis | null>(null);
+  const [problem, setProblem] = useState<string>("");
+  const [history, setHistory] = useState<string[]>();
 
   function endInterview() {
     // reset the FSM, clear transcripts, etc
@@ -56,11 +61,33 @@ export default function Panel(): JSX.Element {
     // listen for events
     chrome.runtime.onMessage.addListener(async (request: ChromeMessage, sender, sendResponse) => {
       if (request.action === "problem") {
-        console.log(request.problem);
-        // now begin the interview
+        const problem = request.problem;
+        console.log(problem);
+        // save this to display the current problem being worked on
+        setProblem(problem);
+        // generate the main prompt
+        const mainPrompt = GeneratePrompt(problem);
+        // TODO: put the FSM into interview loop mode
+        let history = [mainPrompt];
+        // make the request to Gemini
+        setIsLoadingResponse(true);
+        const response = await generateResponse(history);
+        setIsLoadingResponse(false);
+        // say the result
+        // parse out the speak
+        const responseObj = JSON.parse(response);
+        const speakString = responseObj.speak
+        if (speakString && speakString.length > 0) {
+          say(speakString);
+        } else {
+          console.log("no speaking, but here is the res:", responseObj)
+        }
+        // save the history
+        history = history.concat([response]);
+        setHistory(history);
+        // now begin the interview cycle
         // TODO: Create an internal timer or something somehow?
-        say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
-
+        // say("Hello there! I will be interviewing you today. You'll be completing this Leetcode problem here. You'll have 30 minutes to come up with a solution. Feel free to ask me for any hints or help.");
       } else if (request.action === "scrapingError") {
         console.error("Error while scraping:", request.error);
 
@@ -168,6 +195,10 @@ export default function Panel(): JSX.Element {
           {interviewState === "off" ? "Begin Interview" : "Stop Interview"}
         </Button>
       </Center>
+      <h1>Interviewer Status</h1>
+      <div>
+        {isLoadingResponse ? <CircularProgress isIndeterminate /> : "Ready to respond"}
+      </div>
       <h1>Real-time Transcript</h1>
       <div>{transcript}</div>
     </div>

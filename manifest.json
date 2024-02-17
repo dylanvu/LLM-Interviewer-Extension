@@ -23,7 +23,9 @@
     "audio"
   ],
   "host_permissions": [
-    "https://www.leetcode.com/"
+    "https://www.leetcode.com/*",
+    "http://localhost:3000/*",
+    "https://llm-interviewer-backend.vercel.app/*"
   ],
   "content_scripts": [
     {
