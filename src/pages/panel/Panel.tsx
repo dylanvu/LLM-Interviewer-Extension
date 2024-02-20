@@ -112,10 +112,14 @@ export default function Panel(): JSX.Element {
       setIsLoadingResponse(true);
       let historyToSend: string[];
       if (!history || history.length === 0) {
+        console.log("No history found, I'm regenerating prompt");
         historyToSend = [generatePrompt(problem)];
       } else {
+        console.log("Using existing history");
         historyToSend = [...history];
       }
+      // add in the transcript
+      historyToSend.concat([transcript]);
       generateResponse(historyToSend).then(response => {
         setIsLoadingResponse(false);
         // say the result
@@ -209,6 +213,10 @@ export default function Panel(): JSX.Element {
       </div>
       <h1>Real-time Transcript</h1>
       <div>{transcript}</div>
+      <h1>History</h1>
+      <div>
+        {history?.map(message => { return <div>{message}</div> })}
+      </div>
     </div>
   );
 }
